@@ -33,3 +33,7 @@
 - PostgreSQL (Amazon RDS)
 - AWS EC2, S3, RDS, CloudWatch, Lambda, KMS
 - Terraform (for infrastructure provisioning)
+
+## Architecture Diagram
+![image](https://github.com/Frida7771/CloudNode/issues/1#issue-3303072095)
+
