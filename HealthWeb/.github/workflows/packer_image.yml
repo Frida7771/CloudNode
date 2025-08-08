@@ -1,0 +1,80 @@
+name: Packer Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-ami:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    env:
+      PKR_VAR_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      PKR_VAR_DB_USER: ${{ secrets.DB_USER }}
+      PKR_VAR_DB_NAME: ${{ secrets.DB_DATABASE }}
+      PKR_VAR_ami_name: ${{ secrets.AMI_NAME }}
+      PKR_VAR_region: ${{ secrets.AWS_REGION }}
+      PKR_VAR_instance_type: ${{ secrets.INSTANCE_TYPE }}
+      PKR_VAR_source_ami: ${{ secrets.SOURCE_AMI }}
+      PKR_VAR_profile: ${{ secrets.AWS_PROFILE }}
+      PKR_VAR_ssh_username: ${{ secrets.SSH_USERNAME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Zip Artifact
+        run: |
+          zip -r webapp.zip ./
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install  
+      
+      - name: Configure Environment Variables
+        run: |
+          touch .env
+          echo DB_HOST=${{ secrets.DB_HOST }} >> .env
+          echo DB_PORT=${{ secrets.DB_PORT }} >> .env
+          echo DB_DATABASE=${{ secrets.DB_DATABASE }} >> .env
+          echo DB_DATABASE_TEST=${{ secrets.DB_DATABASE_TEST }} >> .env
+          echo DB_USER=${{ secrets.DB_USER }} >> .env
+          echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> .env
+
+      - name: Set AMI Name with Date postfix
+        run: |
+          DATE=$(date +'%Y-%m-%d-%H-%M-%S')
+          export PKR_VAR_ami_name="${{ secrets.AMI_NAME }}-${DATE}"
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "latest"
+
+      - name: Packer Init
+        run: packer init aws-ubuntu.pkr.hcl
+
+      - name: Validate Packer Template
+        run: |
+          packer validate aws-ubuntu.pkr.hcl
+
+      - name: Build Packer Image
+        run: |
+          packer build aws-ubuntu.pkr.hcl
+        id: packer-build

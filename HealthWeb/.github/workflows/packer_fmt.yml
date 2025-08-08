@@ -1,0 +1,30 @@
+name: Packer CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  packer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: '1.11.2'
+      
+      - name: Zip Artifact
+        run: |
+          zip -r webapp.zip ./
+
+      - name: Initialize Packer
+        run: packer init .
+
+      - name: Packer fmt
+        run: packer fmt -check -diff .
+        
+      - name: Packer validate
+        run: packer validate .
